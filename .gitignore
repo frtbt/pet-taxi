@@ -1,0 +1,27 @@
+# Node / npm
+mobil/node_modules/
+mobil/package-lock.json
+
+# Expo
+mobil/.expo/
+mobil/dist/
+
+# Android build outputs
+mobil/android/.gradle/
+mobil/android/build/
+mobil/android/app/build/
+
+# Hassas dosyalar
+mobil/android/app/google-services.json
+mobil/GoogleService-Info.plist
+*.keystore
+*.jks
+
+# Geçici
+*.log
+*.tmp
+update_settings.php
+
+# OS
+.DS_Store
+Thumbs.db
