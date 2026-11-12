@@ -1,12 +1,13 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
     View, Text, TextInput, TouchableOpacity,
     StyleSheet, KeyboardAvoidingView, Platform,
     ActivityIndicator, Alert, ScrollView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../src/context/AuthContext';
-import Colors from '../../src/theme/colors';
+import { useTheme } from '../../src/context/ThemeContext';
 
 export default function LoginScreen() {
     const [email, setEmail]       = useState('');
@@ -14,6 +15,8 @@ export default function LoginScreen() {
     const [loading, setLoading]   = useState(false);
     const [showPass, setShowPass] = useState(false);
     const { login } = useAuth();
+    const { colors: C } = useTheme();
+    const styles = useMemo(() => makeStyles(C), [C]);
     const router = useRouter();
 
     async function handleLogin() {
@@ -37,20 +40,18 @@ export default function LoginScreen() {
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
             <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-                {/* Logo / Header */}
                 <View style={styles.header}>
                     <Text style={styles.emoji}>🚕</Text>
                     <Text style={styles.brand}>Pet Taxi</Text>
                     <Text style={styles.subtitle}>Köpeğiniz için güvenli ulaşım</Text>
                 </View>
 
-                {/* Form */}
                 <View style={styles.card}>
                     <Text style={styles.label}>Email</Text>
                     <TextInput
                         style={styles.input}
                         placeholder="example@email.com"
-                        placeholderTextColor={Colors.textMuted}
+                        placeholderTextColor={C.textMuted}
                         value={email}
                         onChangeText={setEmail}
                         keyboardType="email-address"
@@ -63,13 +64,13 @@ export default function LoginScreen() {
                         <TextInput
                             style={[styles.input, { flex: 1, marginBottom: 0 }]}
                             placeholder="••••••••"
-                            placeholderTextColor={Colors.textMuted}
+                            placeholderTextColor={C.textMuted}
                             value={password}
                             onChangeText={setPassword}
                             secureTextEntry={!showPass}
                         />
                         <TouchableOpacity onPress={() => setShowPass(v => !v)} style={styles.eyeBtn}>
-                            <Text style={{ color: Colors.textMuted }}>{showPass ? '🙈' : '👁️'}</Text>
+                            <Ionicons name={showPass ? 'eye-off-outline' : 'eye-outline'} size={20} color={C.textMuted} />
                         </TouchableOpacity>
                     </View>
 
@@ -80,11 +81,15 @@ export default function LoginScreen() {
                         activeOpacity={0.8}
                     >
                         {loading
-                            ? <ActivityIndicator color={Colors.darker} />
+                            ? <ActivityIndicator color={C.darker} />
                             : <Text style={styles.btnText}>Giriş Yap</Text>
                         }
                     </TouchableOpacity>
                 </View>
+
+                <TouchableOpacity style={styles.forgotRow} onPress={() => router.push('/auth/forgot-password')}>
+                    <Text style={styles.forgotLink}>Şifremi Unuttum</Text>
+                </TouchableOpacity>
 
                 <View style={styles.registerRow}>
                     <Text style={styles.note}>Hesabın yok mu?</Text>
@@ -97,39 +102,35 @@ export default function LoginScreen() {
     );
 }
 
-const styles = StyleSheet.create({
-    root:     { flex: 1, backgroundColor: Colors.background },
+const makeStyles = (C) => StyleSheet.create({
+    root:     { flex: 1, backgroundColor: C.background },
     scroll:   { flexGrow: 1, justifyContent: 'center', padding: 24 },
     header:   { alignItems: 'center', marginBottom: 36 },
     emoji:    { fontSize: 64, marginBottom: 8 },
-    brand:    { fontSize: 36, fontWeight: '800', color: Colors.primary, letterSpacing: 1 },
-    subtitle: { fontSize: 14, color: Colors.textMuted, marginTop: 4 },
+    brand:    { fontSize: 36, fontWeight: '800', color: C.primary, letterSpacing: 1 },
+    subtitle: { fontSize: 14, color: C.textMuted, marginTop: 4 },
 
-    card:     { backgroundColor: Colors.card, borderRadius: 16, padding: 24, gap: 4 },
-    label:    { color: Colors.textMuted, fontSize: 12, fontWeight: '600', marginTop: 12, marginBottom: 4, textTransform: 'uppercase' },
-    input:    {
-        backgroundColor: Colors.surface,
+    card:  { backgroundColor: C.card, borderRadius: 16, padding: 24, gap: 4 },
+    label: { color: C.textMuted, fontSize: 12, fontWeight: '600', marginTop: 12, marginBottom: 4, textTransform: 'uppercase' },
+    input: {
+        backgroundColor: C.surface,
         borderRadius: 10,
         paddingHorizontal: 14,
         paddingVertical: 12,
-        color: Colors.text,
+        color: C.text,
         fontSize: 15,
         marginBottom: 4,
         borderWidth: 1,
-        borderColor: Colors.border,
+        borderColor: C.border,
     },
     passWrap: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
     eyeBtn:   { paddingHorizontal: 12, paddingVertical: 12 },
 
-    btn:          {
-        backgroundColor: Colors.primary,
-        borderRadius: 12,
-        paddingVertical: 14,
-        alignItems: 'center',
-        marginTop: 20,
-    },
-    btnText:      { color: Colors.darker, fontWeight: '800', fontSize: 16 },
-    registerRow:  { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 24 },
-    note:         { color: Colors.textMuted, fontSize: 13 },
-    registerLink: { color: Colors.primary, fontSize: 13, fontWeight: '700' },
+    btn:          { backgroundColor: C.primary, borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginTop: 20 },
+    btnText:      { color: C.darker, fontWeight: '800', fontSize: 16 },
+    forgotRow:    { alignItems: 'center', marginTop: 16 },
+    forgotLink:   { color: C.textMuted, fontSize: 13, fontWeight: '600' },
+    registerRow:  { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 16 },
+    note:         { color: C.textMuted, fontSize: 13 },
+    registerLink: { color: C.primary, fontSize: 13, fontWeight: '700' },
 });

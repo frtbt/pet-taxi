@@ -1,18 +1,24 @@
 import { View, Text, StyleSheet } from 'react-native';
-import Colors from '../theme/colors';
+import { useTheme } from '../context/ThemeContext';
 
 const STATUS_MAP = {
-    bekliyor:     { label: 'Bekliyor',     bg: Colors.warning  + '22', border: Colors.warning,  text: Colors.warning },
-    eslesti:      { label: 'Eşleşti',      bg: Colors.info     + '22', border: Colors.info,     text: Colors.info },
-    basladi:      { label: 'Yolda',        bg: '#8b5cf622',            border: '#8b5cf6',        text: '#8b5cf6' },
-    tamamlandi:   { label: 'Tamamlandı',   bg: Colors.success  + '22', border: Colors.success,  text: Colors.success },
-    iptal:        { label: 'İptal Edildi', bg: Colors.danger   + '22', border: Colors.danger,   text: Colors.danger },
-    kabul_edildi: { label: 'Kabul Edildi', bg: Colors.info     + '22', border: Colors.info,     text: Colors.info },
-    devam_ediyor: { label: 'Devam Ediyor', bg: '#8b5cf622',            border: '#8b5cf6',        text: '#8b5cf6' },
+    bekliyor:     { label: 'Bekliyor',     bg: '#f59e0b22', border: '#f59e0b', text: '#f59e0b' },
+    eslesti:      { label: 'Eşleşti',      bg: '#60a5fa22', border: '#60a5fa', text: '#60a5fa' },
+    basladi:      { label: 'Yolda',        bg: '#8b5cf622', border: '#8b5cf6', text: '#8b5cf6' },
+    tamamlandi:   { label: 'Tamamlandı',   bg: '#22c55e22', border: '#22c55e', text: '#22c55e' },
+    iptal:        { label: 'İptal Edildi', bg: '#ef444422', border: '#ef4444', text: '#ef4444' },
+    kabul_edildi: { label: 'Kabul Edildi', bg: '#60a5fa22', border: '#60a5fa', text: '#60a5fa' },
+    devam_ediyor: { label: 'Devam Ediyor', bg: '#8b5cf622', border: '#8b5cf6', text: '#8b5cf6' },
 };
 
 export function StatusBadge({ durum, style }) {
-    const s = STATUS_MAP[durum] ?? { label: durum, bg: Colors.surface, border: Colors.border, text: Colors.textMuted };
+    const { colors: C } = useTheme();
+    const s = STATUS_MAP[durum] ?? {
+        label: durum,
+        bg: C.surface,
+        border: C.border,
+        text: C.textMuted,
+    };
     return (
         <View style={[styles.badge, { backgroundColor: s.bg, borderColor: s.border }, style]}>
             <Text style={[styles.text, { color: s.text }]}>{s.label}</Text>

@@ -1,36 +1,52 @@
-// Pet Taxi renk paleti — sarı/koyu tema
-export const Colors = {
-    primary:    '#f59e0b',   // Amber — ana marka rengi
-    primaryDark:'#d97706',
+const SHARED = {
+    primary:     '#f59e0b',
+    primaryDark: '#d97706',
     primaryLight:'#fde68a',
-    dark:       '#1e293b',   // Slate 800
-    darker:     '#0f172a',   // Slate 900
-    card:       '#1e293b',
-    surface:    '#334155',   // Slate 700
-    border:     '#475569',   // Slate 600
-    text:       '#f8fafc',   // Neredeyse beyaz
-    textMuted:  '#94a3b8',   // Slate 400
-    textDark:   '#1e293b',
-
-    success:    '#10b981',
+    success:    '#22c55e',
     warning:    '#f59e0b',
     danger:     '#ef4444',
-    info:       '#3b82f6',
-
-    background: '#0f172a',
+    info:       '#60a5fa',
     white:      '#ffffff',
     black:      '#000000',
-
-    // Durum renkleri (talep/yolculuk)
+    petGreen:   '#22c55e',
+    taxiAmber:  '#f59e0b',
     statusColors: {
         bekliyor:     '#f59e0b',
-        eslesti:      '#3b82f6',
-        basladi:      '#8b5cf6',
-        tamamlandi:   '#10b981',
+        eslesti:      '#60a5fa',
+        basladi:      '#a78bfa',
+        tamamlandi:   '#22c55e',
         iptal:        '#ef4444',
-        kabul_edildi: '#3b82f6',
-        devam_ediyor: '#8b5cf6',
+        kabul_edildi: '#60a5fa',
+        devam_ediyor: '#a78bfa',
     },
 };
 
-export default Colors;
+export const DarkColors = {
+    ...SHARED,
+    darker:     '#0d0a07',
+    dark:       '#1a1410',
+    background: '#0d0a07',
+    card:       '#1f1916',
+    surface:    '#2e2420',
+    border:     '#3d3028',
+    text:       '#f7f3ee',
+    textMuted:  '#a09082',
+    textDark:   '#1f1916',
+};
+
+export const LightColors = {
+    ...SHARED,
+    darker:     '#1a1410',
+    dark:       '#2d2420',
+    background: '#f8f5f0',
+    card:       '#ffffff',
+    surface:    '#f0ebe4',
+    border:     '#e8dfd6',
+    text:       '#1a1410',
+    textMuted:  '#8c7b6e',
+    textDark:   '#1a1410',
+};
+
+// Default export for backward compat (dark)
+export const Colors = DarkColors;
+export default DarkColors;

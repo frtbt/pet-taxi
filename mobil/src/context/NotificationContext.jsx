@@ -10,11 +10,12 @@ const NotificationContext = createContext({
     unreadNotifications: 0,
     refreshNotifications: () => {},
     markRead: () => {},
+    setActiveTripPolling: () => {},
 });
 
 // Register for FCM push notifications (skipped in Expo Go)
 async function registerForPushNotifications() {
-    if (isExpoGo) { console.log('[Push] Expo Go - skipped'); return null; }
+    if (isExpoGo) return null;
     try {
         const Notifications = require('expo-notifications');
         const { status: existing } = await Notifications.getPermissionsAsync();
@@ -23,33 +24,29 @@ async function registerForPushNotifications() {
             const { status } = await Notifications.requestPermissionsAsync();
             finalStatus = status;
         }
-        if (finalStatus !== 'granted') {
-            console.warn('[Push] Permission denied:', finalStatus);
-            return null;
-        }
+        if (finalStatus !== 'granted') return null;
 
         if (Platform.OS === 'android') {
             await Notifications.setNotificationChannelAsync('notifications', {
-                name: 'Notifications',
+                name: 'Bildirimler',
                 importance: Notifications.AndroidImportance.HIGH,
                 vibrationPattern: [0, 250, 250, 250],
                 lightColor: '#f59e0b',
+                sound: 'default',
             });
             await Notifications.setNotificationChannelAsync('messages', {
-                name: 'Messages',
+                name: 'Mesajlar',
                 importance: Notifications.AndroidImportance.MAX,
                 vibrationPattern: [0, 250, 250, 250],
                 lightColor: '#f59e0b',
+                sound: 'default',
             });
         }
 
-        try { await Notifications.unregisterForNotificationsAsync(); } catch (_) {}
+        // NOT: unregisterForNotificationsAsync() ÇAĞIRMA — token'ı geçersiz kılar
         const tokenResult = await Notifications.getDevicePushTokenAsync();
-        const fcmToken = tokenResult?.data;
-        console.log('[Push] FCM token:', fcmToken ? fcmToken.substring(0, 20) + '...' : 'NULL');
-        return fcmToken ?? null;
+        return tokenResult?.data ?? null;
     } catch (err) {
-        console.error('[Push] Token error:', err?.message ?? err);
         return null;
     }
 }
@@ -68,8 +65,10 @@ async function showLocalNotification(title, body) {
 export function NotificationProvider({ children }) {
     const { user } = useAuth();
     const [unreadNotifications, setUnreadNotifications] = useState(0);
-    const intervalRef = useRef(null);
-    const prevCountRef = useRef(0);
+    const intervalRef    = useRef(null);
+    const pollIntervalMs = useRef(30000); // 30s idle, 5s active trip
+    const prevCountRef   = useRef(0);
+    const prevSupportRef = useRef(0);
     const initializedRef = useRef(false);
 
     const refreshNotifications = useCallback(async () => {
@@ -78,20 +77,28 @@ export function NotificationProvider({ children }) {
             const res = await taxiApi.getUnreadCounts();
             if (res.success) {
                 const newCount = res.unread_notifications || 0;
+                const newSupport = res.unread_support || 0;
                 setUnreadNotifications(newCount);
 
-                // Show local notification if count increased after first load
-                if (initializedRef.current && newCount > prevCountRef.current) {
-                    try {
-                        const nRes = await taxiApi.getNotifications();
-                        if (nRes.success && nRes.notifications?.length > 0) {
-                            const latest = nRes.notifications[0];
-                            showLocalNotification(latest.baslik, latest.icerik);
-                        }
-                    } catch {}
+                if (initializedRef.current) {
+                    // Yeni genel bildirim
+                    if (newCount > prevCountRef.current) {
+                        try {
+                            const nRes = await taxiApi.getNotifications();
+                            if (nRes.success && nRes.notifications?.length > 0) {
+                                const latest = nRes.notifications[0];
+                                showLocalNotification(latest.baslik, latest.icerik);
+                            }
+                        } catch {}
+                    }
+                    // Adminten yeni destek mesajı
+                    if (newSupport > prevSupportRef.current) {
+                        showLocalNotification('💬 Destek Yanıtı', 'Yönetimden yeni bir mesaj aldınız.');
+                    }
                 }
 
                 prevCountRef.current = newCount;
+                prevSupportRef.current = newSupport;
                 initializedRef.current = true;
             }
         } catch {}
@@ -105,28 +112,42 @@ export function NotificationProvider({ children }) {
         } catch {}
     }, []);
 
+    // Called by active-trip screen to switch between fast (5s) and idle (30s) polling
+    const setActiveTripPolling = useCallback((active) => {
+        const ms = active ? 5000 : 30000;
+        pollIntervalMs.current = ms;
+        if (intervalRef.current) {
+            clearInterval(intervalRef.current);
+            intervalRef.current = setInterval(refreshNotifications, ms);
+        }
+    }, [refreshNotifications]);
+
     useEffect(() => {
         if (!user) {
             setUnreadNotifications(0);
             prevCountRef.current = 0;
+            prevSupportRef.current = 0;
             initializedRef.current = false;
             return;
         }
 
         refreshNotifications();
-        intervalRef.current = setInterval(refreshNotifications, 5000);
+        intervalRef.current = setInterval(refreshNotifications, pollIntervalMs.current);
 
-        // Register FCM token
-        registerForPushNotifications().then(async (token) => {
-            if (token) {
-                try {
-                    const res = await taxiApi.registerPushToken(token);
-                    console.log('[Push] Token registered:', JSON.stringify(res));
-                } catch (e) {
-                    console.error('[Push] Token registration error:', e?.message);
-                }
+        // FCM token al ve kaydet — başarısız olursa 5s sonra tekrar dene
+        const saveToken = async (retryCount = 0) => {
+            const token = await registerForPushNotifications();
+            if (!token) {
+                if (retryCount < 3) setTimeout(() => saveToken(retryCount + 1), 5000);
+                return;
             }
-        });
+            try {
+                await taxiApi.registerPushToken(token);
+            } catch (_) {
+                if (retryCount < 3) setTimeout(() => saveToken(retryCount + 1), 8000);
+            }
+        };
+        saveToken();
 
         return () => {
             if (intervalRef.current) clearInterval(intervalRef.current);
@@ -142,7 +163,7 @@ export function NotificationProvider({ children }) {
     }, [refreshNotifications]);
 
     return (
-        <NotificationContext.Provider value={{ unreadNotifications, refreshNotifications, markRead }}>
+        <NotificationContext.Provider value={{ unreadNotifications, refreshNotifications, markRead, setActiveTripPolling }}>
             {children}
         </NotificationContext.Provider>
     );

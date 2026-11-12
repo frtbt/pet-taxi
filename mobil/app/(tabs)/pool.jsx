@@ -1,35 +1,25 @@
-/**
- * Job Pool for Drivers / My Requests for Owners
- * Content changes based on useAuth().isDriver
- */
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useMemo } from 'react';
 import {
     View, Text, FlatList, StyleSheet,
     TouchableOpacity, RefreshControl, Alert, ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../src/context/AuthContext';
+import { useTheme } from '../../src/context/ThemeContext';
 import taxiApi from '../../src/api/taxiClient';
-import Colors from '../../src/theme/colors';
 import { useFocusEffect } from '@react-navigation/native';
-
-const STATUS_MAP = {
-    bekliyor:     { label: 'Bekliyor',      color: Colors.warning },
-    eslesti:      { label: 'Eşleşti',       color: Colors.info },
-    basladi:      { label: 'Yolda',         color: '#8b5cf6' },
-    tamamlandi:   { label: 'Tamamlandı',    color: Colors.success },
-    iptal:        { label: 'İptal Edildi',  color: Colors.danger },
-    kabul_edildi: { label: 'Kabul Edildi',  color: Colors.info },
-    devam_ediyor: { label: 'Devam Ediyor',  color: '#8b5cf6' },
-};
+import { getStatus } from '../../src/constants/tripStatus';
 
 export default function PoolScreen() {
     const { isDriver } = useAuth();
+    const { colors: C } = useTheme();
+    const styles = useMemo(() => makeStyles(C), [C]);
     const router = useRouter();
-    const [items, setItems]         = useState([]);
-    const [loading, setLoading]     = useState(true);
+    const [items, setItems]           = useState([]);
+    const [loading, setLoading]       = useState(true);
     const [refreshing, setRefreshing] = useState(false);
-    const [accepting, setAccepting] = useState(null);
+    const [accepting, setAccepting]   = useState(null);
+    const autoRefreshRef = useRef(null);
 
     const load = useCallback(async () => {
         const res = isDriver ? await taxiApi.getPool() : await taxiApi.getMyRequests();
@@ -37,7 +27,18 @@ export default function PoolScreen() {
         setLoading(false);
     }, [isDriver]);
 
-    useFocusEffect(useCallback(() => { load(); }, [load]));
+    useFocusEffect(useCallback(() => {
+        load();
+        if (isDriver) {
+            autoRefreshRef.current = setInterval(load, 30000);
+        }
+        return () => {
+            if (autoRefreshRef.current) {
+                clearInterval(autoRefreshRef.current);
+                autoRefreshRef.current = null;
+            }
+        };
+    }, [load, isDriver]));
 
     const onRefresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
 
@@ -64,7 +65,7 @@ export default function PoolScreen() {
     if (loading) {
         return (
             <View style={styles.center}>
-                <ActivityIndicator size="large" color={Colors.primary} />
+                <ActivityIndicator size="large" color={C.primary} />
             </View>
         );
     }
@@ -75,7 +76,7 @@ export default function PoolScreen() {
                 data={items}
                 keyExtractor={item => String(item.id)}
                 contentContainerStyle={styles.list}
-                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />}
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.primary} />}
                 ListEmptyComponent={
                     <View style={styles.empty}>
                         <Text style={styles.emptyEmoji}>{isDriver ? '🗺️' : '📋'}</Text>
@@ -98,10 +99,9 @@ export default function PoolScreen() {
                         }
                         activeOpacity={isDriver ? 1 : 0.8}
                     >
-                        {/* Route */}
                         <View style={styles.routeRow}>
                             <View style={styles.routePoint}>
-                                <View style={[styles.dot, { backgroundColor: Colors.success }]} />
+                                <View style={[styles.dot, { backgroundColor: C.success }]} />
                                 <View>
                                     <Text style={styles.routeLabel}>ALIŞ</Text>
                                     <Text style={styles.routeMain}>{item.baslangic_ilce}, {item.baslangic_sehir}</Text>
@@ -110,7 +110,7 @@ export default function PoolScreen() {
                             </View>
                             <View style={styles.routeDivider} />
                             <View style={styles.routePoint}>
-                                <View style={[styles.dot, { backgroundColor: Colors.danger }]} />
+                                <View style={[styles.dot, { backgroundColor: C.danger }]} />
                                 <View>
                                     <Text style={styles.routeLabel}>BIRAKIŞ</Text>
                                     <Text style={styles.routeMain}>{item.varis_ilce}, {item.varis_sehir}</Text>
@@ -119,11 +119,28 @@ export default function PoolScreen() {
                             </View>
                         </View>
 
-                        {/* Meta */}
                         <View style={styles.metaRow}>
                             <View style={styles.metaItem}>
                                 <Text style={styles.metaLabel}>🐕 Köpek</Text>
                                 <Text style={styles.metaValue}>{item.kopek_adi}</Text>
+                                {isDriver && (
+                                    <Text style={{ fontSize: 11, color: item.kopek_mikrocip ? C.textMuted : '#f59e0b', marginTop: 2 }}>
+                                        {item.kopek_mikrocip ? `📡 ${item.kopek_mikrocip}` : '📡 Mikroçip eksik'}
+                                        {' · '}
+                                        {Number(item.kopek_asili) ? '✅ Aşılı' : '⚠️ Aşısız'}
+                                    </Text>
+                                )}
+                                {isDriver && Number(item.agresyon_gecmisi) ? (
+                                    <Text style={{ fontSize: 11, color: '#ef4444', marginTop: 1, fontWeight: '700' }}>
+                                        {'⚠️ Isırma/saldırma geçmişi var'}
+                                        {Number(item.agizlik_taahhut) ? ' · Ağızlık takılacak' : ''}
+                                    </Text>
+                                ) : null}
+                                {isDriver && !Number(item.ekipman_taahhut) ? (
+                                    <Text style={{ fontSize: 11, color: '#f59e0b', marginTop: 1, fontWeight: '700' }}>
+                                        📦 Taşıma kutusu/kafes taahhüdü yok
+                                    </Text>
+                                ) : null}
                             </View>
                             {item.tahmini_mesafe && (
                                 <View style={styles.metaItem}>
@@ -133,19 +150,18 @@ export default function PoolScreen() {
                             )}
                             <View style={styles.metaItem}>
                                 <Text style={styles.metaLabel}>💰 Ücret</Text>
-                                <Text style={[styles.metaValue, { color: Colors.primary }]}>
+                                <Text style={[styles.metaValue, { color: C.primary }]}>
                                     {Number(item.toplam_ucret).toLocaleString('tr-TR')} ₺
                                 </Text>
                             </View>
                         </View>
 
-                        {/* Status / Button */}
                         <View style={styles.bottomRow}>
                             {!isDriver && (() => {
-                                const s = STATUS_MAP[item.durum] ?? { label: item.durum, color: Colors.textMuted };
+                                const st = getStatus(item.durum);
                                 return (
-                                    <View style={[styles.statusBadge, { backgroundColor: s.color + '22', borderColor: s.color }]}>
-                                        <Text style={[styles.statusText, { color: s.color }]}>{s.label}</Text>
+                                    <View style={[styles.statusBadge, { backgroundColor: st.color + '22', borderColor: st.color }]}>
+                                        <Text style={[styles.statusText, { color: st.color }]}>{st.label}</Text>
                                     </View>
                                 );
                             })()}
@@ -157,7 +173,7 @@ export default function PoolScreen() {
                                     activeOpacity={0.8}
                                 >
                                     {accepting === item.id
-                                        ? <ActivityIndicator size="small" color={Colors.darker} />
+                                        ? <ActivityIndicator size="small" color={C.darker} />
                                         : <Text style={styles.acceptBtnText}>Kabul Et ›</Text>
                                     }
                                 </TouchableOpacity>
@@ -170,7 +186,6 @@ export default function PoolScreen() {
                 )}
             />
 
-            {/* "New Request" button for owners */}
             {!isDriver && (
                 <TouchableOpacity
                     style={styles.fab}
@@ -184,50 +199,45 @@ export default function PoolScreen() {
     );
 }
 
-const styles = StyleSheet.create({
-    root:   { flex: 1, backgroundColor: Colors.background },
-    center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.background },
+const makeStyles = (C) => StyleSheet.create({
+    root:   { flex: 1, backgroundColor: C.background },
+    center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: C.background },
     list:   { padding: 16, gap: 12, paddingBottom: 90 },
 
-    listHeader: { color: Colors.textMuted, fontSize: 12, fontWeight: '700', textTransform: 'uppercase', marginBottom: 4 },
+    listHeader: { color: C.textMuted, fontSize: 12, fontWeight: '700', textTransform: 'uppercase', marginBottom: 4 },
 
     empty:      { alignItems: 'center', paddingVertical: 60 },
     emptyEmoji: { fontSize: 48, marginBottom: 12 },
-    emptyText:  { color: Colors.textMuted, fontSize: 14 },
+    emptyText:  { color: C.textMuted, fontSize: 14 },
 
-    card: {
-        backgroundColor: Colors.card,
-        borderRadius: 16,
-        padding: 16,
-        gap: 12,
-    },
+    card: { backgroundColor: C.card, borderRadius: 16, padding: 16, gap: 12 },
 
     routeRow:     { gap: 8 },
     routePoint:   { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
     dot:          { width: 12, height: 12, borderRadius: 6, marginTop: 3 },
-    routeLabel:   { color: Colors.textMuted, fontSize: 10, fontWeight: '700', letterSpacing: 0.5 },
-    routeMain:    { color: Colors.text, fontSize: 14, fontWeight: '700' },
-    routeSub:     { color: Colors.textMuted, fontSize: 12, maxWidth: 260 },
-    routeDivider: { height: 1, backgroundColor: Colors.border, marginVertical: 4, marginLeft: 22 },
+    routeLabel:   { color: C.textMuted, fontSize: 10, fontWeight: '700', letterSpacing: 0.5 },
+    routeMain:    { color: C.text, fontSize: 14, fontWeight: '700' },
+    routeSub:     { color: C.textMuted, fontSize: 12, maxWidth: 260 },
+    routeDivider: { height: 1, backgroundColor: C.border, marginVertical: 4, marginLeft: 22 },
 
-    metaRow:    { flexDirection: 'row', gap: 16 },
-    metaItem:   { gap: 2 },
-    metaLabel:  { color: Colors.textMuted, fontSize: 11 },
-    metaValue:  { color: Colors.text, fontSize: 13, fontWeight: '700' },
+    metaRow:   { flexDirection: 'row', gap: 16 },
+    metaItem:  { gap: 2 },
+    metaLabel: { color: C.textMuted, fontSize: 11 },
+    metaValue: { color: C.text, fontSize: 13, fontWeight: '700' },
 
     bottomRow:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 },
     statusBadge: { borderRadius: 8, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 4 },
     statusText:  { fontSize: 12, fontWeight: '700' },
-    timeText:    { color: Colors.textMuted, fontSize: 12 },
+    timeText:    { color: C.textMuted, fontSize: 12 },
 
-    acceptBtn:     { backgroundColor: Colors.primary, borderRadius: 10, paddingHorizontal: 20, paddingVertical: 10 },
-    acceptBtnText: { color: Colors.darker, fontWeight: '800', fontSize: 14 },
+    acceptBtn:     { backgroundColor: C.primary, borderRadius: 10, paddingHorizontal: 20, paddingVertical: 10 },
+    acceptBtnText: { color: C.darker, fontWeight: '800', fontSize: 14 },
 
     fab: {
         position: 'absolute', bottom: 20, right: 20, left: 20,
-        backgroundColor: Colors.primary,
+        backgroundColor: C.primary,
         borderRadius: 14, paddingVertical: 16,
         alignItems: 'center', elevation: 6,
     },
-    fabText: { color: Colors.darker, fontWeight: '800', fontSize: 16 },
+    fabText: { color: C.darker, fontWeight: '800', fontSize: 16 },
 });
