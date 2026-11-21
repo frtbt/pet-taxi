@@ -6,15 +6,41 @@ import {
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import * as Location from 'expo-location';
 import * as WebBrowser from 'expo-web-browser';
+import { WebView } from 'react-native-webview';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import taxiApi from '../src/api/taxiClient';
 import { useTheme } from '../src/context/ThemeContext';
 
+function buildContractHtml(icerik, isDark) {
+    const bg   = isDark ? '#1a1a1a' : '#ffffff';
+    const text = isDark ? '#e5e5e5' : '#1a1a1a';
+    const muted = isDark ? '#9ca3af' : '#6b7280';
+    const border = isDark ? '#374151' : '#e5e7eb';
+    return `<!DOCTYPE html><html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: ${bg}; color: ${text};
+    font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif; font-size: 15px; line-height: 1.75; }
+  body { padding: 20px 20px 48px; }
+  h1 { font-size: 1.5em; font-weight: 800; margin: 1.2em 0 .5em; }
+  h2 { font-size: 1.25em; font-weight: 700; margin: 1.1em 0 .4em; }
+  h3 { font-size: 1.1em; font-weight: 700; margin: 1em 0 .3em; }
+  p  { margin: 0 0 .9em; }
+  ul, ol { margin: .4em 0 .9em; padding-left: 1.5em; }
+  li { margin-bottom: .3em; }
+  strong, b { font-weight: 700; }
+  blockquote { border-left: 3px solid ${border}; margin: .8em 0; padding: .4em 0 .4em 1em; color: ${muted}; }
+  hr { border: none; border-top: 1px solid ${border}; margin: 1.2em 0; }
+</style>
+</head><body>${icerik || ''}</body></html>`;
+}
+
 export default function CreateRequestScreen() {
     const router = useRouter();
-    const { colors: C } = useTheme();
+    const { colors: C, isDark } = useTheme();
     const styles = useMemo(() => makeStyles(C), [C]);
 
     const [dogs, setDogs]               = useState([]);
@@ -53,6 +79,10 @@ export default function CreateRequestScreen() {
     const [locLoading, setLocLoading]   = useState(false);
     const [geoLoading, setGeoLoading]   = useState({ pickup: false, dropoff: false });
     const [submitting, setSubmitting]   = useState(false);
+
+    const [contract, setContract]             = useState(null);
+    const [contractLoading, setContractLoading] = useState(false);
+    const [showTermsModal, setShowTermsModal] = useState(false);
 
     const loadDogs = useCallback(async () => {
         setDogsLoading(true);
@@ -256,22 +286,26 @@ export default function CreateRequestScreen() {
         };
     }
 
-    async function handleSubmit() {
-        if (!selectedDog)              { Alert.alert('Köpek Seçin', 'Hangi köpeğin seyahat edeceğini seçin.'); return; }
-        if (!pickup.address || !pickup.city) { Alert.alert('Alış Adresi Eksik', 'Alış adresinizi girin.'); return; }
-        if (!dropoff.lat)              { Alert.alert('Varış Adresi Eksik', 'Listeden bir varış adresi seçin.'); return; }
-        if (agresyonVar === null)      { Alert.alert('Beyan Gerekli', 'Lütfen ısırma/saldırma geçmişi beyanını doldurun.'); return; }
-        if (agresyonVar && !agresyonAciklama.trim()) { Alert.alert('Açıklama Gerekli', 'Lütfen ısırma/saldırma geçmişini kısaca açıklayın.'); return; }
-        if (selectedDog?.huylu === 'agresif' && !agizlikTaahhut) { Alert.alert('Ağızlık Taahhüdü', 'Agresif ırk için seyahat süresince ağızlık takacağınızı onaylamanız zorunludur.'); return; }
-        if (!ekipmanTaahhut) { Alert.alert('Ekipman Taahhüdü', 'Hayvanınızı güvenli taşıma kutusu/kafes/göğüs tasması ile teslim edeceğinizi onaylamanız zorunludur (Madde 5/4).'); return; }
-
+    async function attemptCreateRequest(extraFields = {}) {
         setSubmitting(true);
-        const payload = buildRequestPayload();
+        const payload = { ...buildRequestPayload(), ...extraFields };
         const res = await taxiApi.createRequest(payload);
 
         if (res.success) {
             setSubmitting(false);
             router.replace('/(tabs)');
+            return;
+        }
+
+        if (res.error_code === 'OWNER_TERMS_REQUIRED') {
+            setSubmitting(false);
+            if (!contract) {
+                setContractLoading(true);
+                const cRes = await taxiApi.getContract();
+                setContractLoading(false);
+                if (cRes.success && cRes.contract) setContract(cRes.contract);
+            }
+            setShowTermsModal(true);
             return;
         }
 
@@ -303,6 +337,24 @@ export default function CreateRequestScreen() {
 
         setSubmitting(false);
         Alert.alert('Hata', res.error ?? 'Talep oluşturulamadı.');
+    }
+
+    async function handleSubmit() {
+        if (!selectedDog)              { Alert.alert('Köpek Seçin', 'Hangi köpeğin seyahat edeceğini seçin.'); return; }
+        if (!pickup.address || !pickup.city) { Alert.alert('Alış Adresi Eksik', 'Alış adresinizi girin.'); return; }
+        if (!dropoff.lat)              { Alert.alert('Varış Adresi Eksik', 'Listeden bir varış adresi seçin.'); return; }
+        if (agresyonVar === null)      { Alert.alert('Beyan Gerekli', 'Lütfen ısırma/saldırma geçmişi beyanını doldurun.'); return; }
+        if (agresyonVar && !agresyonAciklama.trim()) { Alert.alert('Açıklama Gerekli', 'Lütfen ısırma/saldırma geçmişini kısaca açıklayın.'); return; }
+        if (selectedDog?.huylu === 'agresif' && !agizlikTaahhut) { Alert.alert('Ağızlık Taahhüdü', 'Agresif ırk için seyahat süresince ağızlık takacağınızı onaylamanız zorunludur.'); return; }
+        if (!ekipmanTaahhut) { Alert.alert('Ekipman Taahhüdü', 'Hayvanınızı güvenli taşıma kutusu/kafes/göğüs tasması ile teslim edeceğinizi onaylamanız zorunludur (Madde 5/4).'); return; }
+
+        await attemptCreateRequest();
+    }
+
+    function handleAcceptTerms() {
+        if (!contract) return;
+        setShowTermsModal(false);
+        attemptCreateRequest({ owner_terms_version: contract.surum });
     }
 
     if (dogsLoading) return <View style={styles.center}><ActivityIndicator size="large" color={C.primary} /></View>;
@@ -731,6 +783,61 @@ export default function CreateRequestScreen() {
                             />
                         )}
                     </View>
+                </View>
+            </Modal>
+
+            <Modal visible={showTermsModal} animationType="slide" onRequestClose={() => setShowTermsModal(false)}>
+                <View style={{ flex: 1, backgroundColor: C.background }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingTop: 56, paddingBottom: 14, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: C.border }}>
+                        <TouchableOpacity style={{ padding: 4 }} onPress={() => setShowTermsModal(false)}>
+                            <Ionicons name="chevron-back" size={24} color={C.text} />
+                        </TouchableOpacity>
+                        <View style={{ flex: 1 }}>
+                            <Text style={{ fontSize: 17, fontWeight: '800', color: C.text }}>Yolculuk Koşulları</Text>
+                            {contract && (
+                                <Text style={{ fontSize: 12, marginTop: 1, color: C.textMuted }}>
+                                    v{contract.surum} · {new Date(contract.yururluk_tarihi).toLocaleDateString('tr-TR')}
+                                </Text>
+                            )}
+                        </View>
+                    </View>
+
+                    {contractLoading ? (
+                        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+                            <ActivityIndicator size="large" color={C.primary} />
+                        </View>
+                    ) : !contract ? (
+                        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+                            <Ionicons name="document-text-outline" size={48} color={C.border} />
+                            <Text style={{ color: C.textMuted, fontSize: 15 }}>Sözleşme bulunamadı</Text>
+                        </View>
+                    ) : (
+                        <>
+                            <WebView
+                                style={{ flex: 1, backgroundColor: C.background }}
+                                source={{ html: buildContractHtml(contract.icerik, !!isDark) }}
+                                originWhitelist={['*']}
+                                scrollEnabled
+                                showsVerticalScrollIndicator={false}
+                                overScrollMode="never"
+                            />
+                            <View style={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 32, borderTopWidth: 1, borderTopColor: C.border, gap: 8 }}>
+                                <TouchableOpacity
+                                    style={{ borderRadius: 14, paddingVertical: 15, alignItems: 'center', backgroundColor: C.primary, opacity: submitting ? 0.6 : 1 }}
+                                    onPress={handleAcceptTerms}
+                                    disabled={submitting}
+                                >
+                                    {submitting
+                                        ? <ActivityIndicator size="small" color={C.darker} />
+                                        : <Text style={{ fontSize: 15, fontWeight: '800', color: C.darker }}>Okudum, Kabul Ediyorum ve Devam Et</Text>
+                                    }
+                                </TouchableOpacity>
+                                <TouchableOpacity style={{ alignItems: 'center', paddingVertical: 8 }} onPress={() => setShowTermsModal(false)}>
+                                    <Text style={{ fontSize: 13, color: C.textMuted }}>Vazgeç</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </>
+                    )}
                 </View>
             </Modal>
         </View>
