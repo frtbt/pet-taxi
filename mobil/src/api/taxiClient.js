@@ -28,7 +28,11 @@ class TaxiApiClient {
 
     async getToken() {
         if (!this.token) {
-            this.token = await SecureStore.getItemAsync('taxi_auth_token');
+            try {
+                this.token = await SecureStore.getItemAsync('taxi_auth_token');
+            } catch {
+                this.token = null;
+            }
         }
         return this.token;
     }

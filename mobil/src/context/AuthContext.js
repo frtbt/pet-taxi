@@ -10,27 +10,32 @@ export function AuthProvider({ children }) {
     // Uygulama açıldığında token + kullanıcı cache'i oku
     useEffect(() => {
         (async () => {
-            await taxiApi.init();
-            const token = await taxiApi.getToken();
-            if (token) {
-                // Önce cache'den göster, ardından sunucudan doğrula
-                const cached = await taxiApi.getCachedUser();
-                if (cached) setUser(cached);
-                try {
-                    const res = await taxiApi.getMe();
-                    if (res.success && res.user) {
-                        setUser(res.user);
-                        await taxiApi.setCachedUser(res.user);
-                    } else {
-                        // Token geçersiz — çıkış yap
-                        await taxiApi.clearCache();
-                        setUser(null);
+            try {
+                await taxiApi.init();
+                const token = await taxiApi.getToken();
+                if (token) {
+                    // Önce cache'den göster, ardından sunucudan doğrula
+                    const cached = await taxiApi.getCachedUser();
+                    if (cached) setUser(cached);
+                    try {
+                        const res = await taxiApi.getMe();
+                        if (res.success && res.user) {
+                            setUser(res.user);
+                            await taxiApi.setCachedUser(res.user);
+                        } else {
+                            // Token geçersiz — çıkış yap
+                            await taxiApi.clearCache();
+                            setUser(null);
+                        }
+                    } catch (_) {
+                        // Ağ hatası — cache'deki kullanıcıyla devam et
                     }
-                } catch (_) {
-                    // Ağ hatası — cache'deki kullanıcıyla devam et
                 }
+            } catch (_) {
+                // Depolama hatası — giriş ekranına düş, sonsuz yüklemede kalma
+            } finally {
+                setLoading(false);
             }
-            setLoading(false);
         })();
     }, []);
 

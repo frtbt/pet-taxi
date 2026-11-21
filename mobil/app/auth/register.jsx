@@ -272,6 +272,10 @@ export default function RegisterScreen() {
                         <Text style={styles.termsLink} onPress={handleOpenContract}>
                             Kullanım Koşulları
                         </Text>
+                        {'\'nı ve '}
+                        <Text style={styles.termsLink} onPress={() => Linking.openURL('https://patimera.com/pet-taksi-gizlilik-politikasi')}>
+                            Gizlilik Politikası
+                        </Text>
                         {'\'nı okudum ve kabul ediyorum'}
                     </Text>
                 </TouchableOpacity>

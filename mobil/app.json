@@ -17,6 +17,76 @@
       "bundleIdentifier": "com.patimera.pettaxi",
       "config": {
         "usesNonExemptEncryption": false
+      },
+      "buildNumber": "1",
+      "privacyManifests": {
+        "NSPrivacyTracking": false,
+        "NSPrivacyCollectedDataTypes": [
+          {
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeName",
+            "NSPrivacyCollectedDataTypeLinked": true,
+            "NSPrivacyCollectedDataTypeTracking": false,
+            "NSPrivacyCollectedDataTypePurposes": [
+              "NSPrivacyCollectedDataTypePurposeAppFunctionality"
+            ]
+          },
+          {
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeEmailAddress",
+            "NSPrivacyCollectedDataTypeLinked": true,
+            "NSPrivacyCollectedDataTypeTracking": false,
+            "NSPrivacyCollectedDataTypePurposes": [
+              "NSPrivacyCollectedDataTypePurposeAppFunctionality"
+            ]
+          },
+          {
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypePhoneNumber",
+            "NSPrivacyCollectedDataTypeLinked": true,
+            "NSPrivacyCollectedDataTypeTracking": false,
+            "NSPrivacyCollectedDataTypePurposes": [
+              "NSPrivacyCollectedDataTypePurposeAppFunctionality"
+            ]
+          },
+          {
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypePreciseLocation",
+            "NSPrivacyCollectedDataTypeLinked": true,
+            "NSPrivacyCollectedDataTypeTracking": false,
+            "NSPrivacyCollectedDataTypePurposes": [
+              "NSPrivacyCollectedDataTypePurposeAppFunctionality"
+            ]
+          },
+          {
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypePhotosorVideos",
+            "NSPrivacyCollectedDataTypeLinked": true,
+            "NSPrivacyCollectedDataTypeTracking": false,
+            "NSPrivacyCollectedDataTypePurposes": [
+              "NSPrivacyCollectedDataTypePurposeAppFunctionality"
+            ]
+          },
+          {
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypePaymentInfo",
+            "NSPrivacyCollectedDataTypeLinked": true,
+            "NSPrivacyCollectedDataTypeTracking": false,
+            "NSPrivacyCollectedDataTypePurposes": [
+              "NSPrivacyCollectedDataTypePurposeAppFunctionality"
+            ]
+          },
+          {
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeUserID",
+            "NSPrivacyCollectedDataTypeLinked": true,
+            "NSPrivacyCollectedDataTypeTracking": false,
+            "NSPrivacyCollectedDataTypePurposes": [
+              "NSPrivacyCollectedDataTypePurposeAppFunctionality"
+            ]
+          },
+          {
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeOtherUserContent",
+            "NSPrivacyCollectedDataTypeLinked": true,
+            "NSPrivacyCollectedDataTypeTracking": false,
+            "NSPrivacyCollectedDataTypePurposes": [
+              "NSPrivacyCollectedDataTypePurposeAppFunctionality"
+            ]
+          }
+        ]
       }
     },
     "android": {
@@ -44,20 +114,26 @@
     },
     "plugins": [
       "expo-router",
-      "expo-secure-store",
+      [
+        "expo-secure-store",
+        {
+          "faceIDPermission": false
+        }
+      ],
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Pet Taxi sürücünün konumunu takip etmek için konum erişimi gerektirir.",
-          "locationWhenInUsePermission": "Pet Taxi sürücünün konumunu takip etmek için konum erişimi gerektirir.",
-          "locationAlwaysPermission": "Pet Taxi sürücünün konumunu takip etmek için konum erişimi gerektirir."
+          "locationWhenInUsePermission": "Pet Taxi, alış noktanızı otomatik doldurmak ve yolculuk sırasında konumunuzu haritada göstermek ve sürücünün konumunu yolcuyla paylaşmak için konum bilgisini kullanır.",
+          "locationAlwaysAndWhenInUsePermission": "Pet Taxi, alış noktanızı otomatik doldurmak ve yolculuk sırasında konumunuzu haritada göstermek ve sürücünün konumunu yolcuyla paylaşmak için konum bilgisini kullanır.",
+          "locationAlwaysPermission": "Pet Taxi, alış noktanızı otomatik doldurmak ve yolculuk sırasında konumunuzu haritada göstermek ve sürücünün konumunu yolcuyla paylaşmak için konum bilgisini kullanır."
         }
       ],
       [
         "expo-image-picker",
         {
           "photosPermission": "Kanıt ve belge fotoğraflarını seçebilmek için galerinize erişim gereklidir.",
-          "cameraPermission": "Teslim alma fotoğrafı ve belge çekebilmek için kameranıza erişim gereklidir."
+          "cameraPermission": "Teslim alma fotoğrafı ve belge çekebilmek için kameranıza erişim gereklidir.",
+          "microphonePermission": false
         }
       ],
       [

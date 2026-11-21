@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import {
     View, Text, TouchableOpacity, StyleSheet, ScrollView,
     Alert, Modal, TextInput, ActivityIndicator, FlatList,
-    KeyboardAvoidingView, Platform, Image,
+    KeyboardAvoidingView, Platform, Image, Linking,
 } from 'react-native';
 
 function formatIBAN(raw) {
@@ -320,6 +320,14 @@ export default function ProfileScreen() {
             <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} activeOpacity={0.8}>
                 <Ionicons name="log-out-outline" size={18} color="#fff" />
                 <Text style={styles.logoutText}>Çıkış Yap</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+                style={styles.privacyBtn}
+                onPress={() => Linking.openURL('https://patimera.com/pet-taksi-gizlilik-politikasi').catch(() => Alert.alert('Hata', 'Bağlantı açılamadı.'))}
+                activeOpacity={0.8}
+            >
+                <Text style={styles.privacyText}>Gizlilik Politikası</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -787,6 +795,8 @@ const makeStyles = (C) => StyleSheet.create({
     logoutBtn:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: C.danger, borderRadius: 14, paddingVertical: 14 },
     logoutText: { color: '#ffffff', fontWeight: '800', fontSize: 15 },
     deleteBtn:  { borderRadius: 12, paddingVertical: 12, alignItems: 'center', borderWidth: 1, borderColor: C.danger + '60' },
+    privacyBtn: { paddingVertical: 12, alignItems: 'center' },
+    privacyText: { color: C.primary, fontWeight: '600', fontSize: 14 },
     deleteText: { color: C.danger, fontWeight: '600', fontSize: 14 },
     version:    { color: C.textMuted, textAlign: 'center', fontSize: 11 },
 
