@@ -14,7 +14,8 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.patimera.pettaxi",
+      "bundleIdentifier": "com.pattaxi.patimera",
+      "appleTeamId": "QBCW26J8XN",
       "config": {
         "usesNonExemptEncryption": false
       },
