@@ -63,7 +63,7 @@ async function showLocalNotification(title, body) {
 }
 
 export function NotificationProvider({ children }) {
-    const { user } = useAuth();
+    const { user, reloadUser } = useAuth();
     const [unreadNotifications, setUnreadNotifications] = useState(0);
     const intervalRef    = useRef(null);
     const pollIntervalMs = useRef(30000); // 30s idle, 5s active trip
@@ -83,6 +83,8 @@ export function NotificationProvider({ children }) {
                 if (initializedRef.current) {
                     // Yeni genel bildirim
                     if (newCount > prevCountRef.current) {
+                        // Bildirim bir durum değişikliği olabilir (ör. belge onayı)
+                        reloadUser();
                         try {
                             const nRes = await taxiApi.getNotifications();
                             if (nRes.success && nRes.notifications?.length > 0) {
@@ -102,7 +104,7 @@ export function NotificationProvider({ children }) {
                 initializedRef.current = true;
             }
         } catch {}
-    }, [user]);
+    }, [user, reloadUser]);
 
     const markRead = useCallback(async () => {
         try {

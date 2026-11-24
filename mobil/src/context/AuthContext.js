@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { AppState } from 'react-native';
 import taxiApi from '../api/taxiClient';
 
 const AuthContext = createContext(null);
@@ -70,13 +71,45 @@ export function AuthProvider({ children }) {
         taxiApi.setCachedUser(updatedUser);
     }
 
+    // Sunucudan güncel kullanıcıyı çek (belge onayı vb. durum değişiklikleri için)
+    const reloadUser = useCallback(async () => {
+        try {
+            const res = await taxiApi.getMe();
+            if (res.success && res.user) {
+                setUser(res.user);
+                await taxiApi.setCachedUser(res.user);
+            }
+        } catch (_) {}
+    }, []);
+
+    // Uygulama öne gelince güncelle
+    useEffect(() => {
+        if (!user) return;
+        const sub = AppState.addEventListener('change', (state) => {
+            if (state === 'active') reloadUser();
+        });
+        return () => sub.remove();
+    }, [!!user, reloadUser]);
+
+    // Sürücü onayı beklenirken uygulama açıkken periyodik kontrol
+    const awaitingApproval = user?.rol === 'surucu' && (
+        user?.sertifika_durumu !== 'onaylandi' || user?.arac_belgeler_durum !== 'onaylandi'
+    );
+    useEffect(() => {
+        if (!awaitingApproval) return;
+        const id = setInterval(() => {
+            if (AppState.currentState === 'active') reloadUser();
+        }, 30000);
+        return () => clearInterval(id);
+    }, [awaitingApproval, reloadUser]);
+
     // Kullanıcı rolü kontrolü
     const isDriver = user?.rol === 'surucu';
     const isOwner  = user?.rol === 'sahip';
     const isAdmin  = user?.rol === 'admin';
 
     return (
-        <AuthContext.Provider value={{ user, loading, register, login, logout, refreshUser, isDriver, isOwner, isAdmin }}>
+        <AuthContext.Provider value={{ user, loading, register, login, logout, refreshUser, reloadUser, isDriver, isOwner, isAdmin }}>
             {children}
         </AuthContext.Provider>
     );
