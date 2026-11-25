@@ -16,6 +16,7 @@ mobil/android/app/google-services.json
 mobil/GoogleService-Info.plist
 *.keystore
 *.jks
+*.p8
 
 # Geçici
 *.log
