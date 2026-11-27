@@ -10,6 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import taxiApi from '../src/api/taxiClient';
+import { compressImage } from '../src/utils/compressImage';
 import { useAuth } from '../src/context/AuthContext';
 import { useNotifications } from '../src/context/NotificationContext';
 import { useTheme } from '../src/context/ThemeContext';
@@ -368,12 +369,14 @@ export default function ActiveTripScreen() {
         }
         const result = await ImagePicker.launchCameraAsync({
             mediaTypes: ImagePicker.MediaTypeOptions.Images,
-            quality: 0.7,
-            base64: true,
+            quality: 1,
         });
         if (result.canceled || !result.assets?.[0]) return;
         setUploadingCheckin(true);
-        const b64 = 'data:image/jpeg;base64,' + result.assets[0].base64;
+        let img;
+        try { img = await compressImage(result.assets[0]); }
+        catch { setUploadingCheckin(false); Alert.alert('Hata', 'Fotoğraf işlenemedi. Lütfen tekrar deneyin.'); return; }
+        const b64 = 'data:image/jpeg;base64,' + img.base64;
         const res = await taxiApi.uploadCheckinPhoto(matchId, b64);
         setUploadingCheckin(false);
         if (res.success) {
@@ -458,10 +461,13 @@ export default function ActiveTripScreen() {
     async function handleSendPhoto() {
         const perm = await ImagePicker.requestCameraPermissionsAsync();
         if (perm.status !== 'granted') { Alert.alert('Kamera İzni', 'Fotoğraf çekmek için kamera izni gereklidir.'); return; }
-        const result = await ImagePicker.launchCameraAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.6, base64: true });
+        const result = await ImagePicker.launchCameraAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 1 });
         if (result.canceled || !result.assets?.[0]) return;
         setSendingPhoto(true);
-        const base64 = 'data:image/jpeg;base64,' + result.assets[0].base64;
+        let img;
+        try { img = await compressImage(result.assets[0]); }
+        catch { setSendingPhoto(false); Alert.alert('Hata', 'Fotoğraf işlenemedi. Lütfen tekrar deneyin.'); return; }
+        const base64 = 'data:image/jpeg;base64,' + img.base64;
         const res = await taxiApi.sendPhoto(matchId, base64);
         setSendingPhoto(false);
         if (res.success) { setDriverPhotoNeeded(false); Alert.alert('Gönderildi!', 'Fotoğraf sahibine iletildi.'); }

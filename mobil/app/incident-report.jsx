@@ -7,6 +7,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import taxiApi from '../src/api/taxiClient';
+import { compressImage } from '../src/utils/compressImage';
 import { useTheme } from '../src/context/ThemeContext';
 
 const TURLER = [
@@ -44,9 +45,13 @@ export default function IncidentReportScreen() {
         if (photos.length >= 5) { Alert.alert('Limit', 'En fazla 5 fotoğraf ekleyebilirsiniz.'); return; }
         const perm = await ImagePicker.requestCameraPermissionsAsync();
         if (perm.status !== 'granted') { Alert.alert('Kamera İzni', 'Fotoğraf çekmek için kamera izni gereklidir.'); return; }
-        const result = await ImagePicker.launchCameraAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.6, base64: true });
+        const result = await ImagePicker.launchCameraAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 1 });
         if (result.canceled || !result.assets?.[0]) return;
-        setPhotos(p => [...p, { uri: result.assets[0].uri, base64: 'data:image/jpeg;base64,' + result.assets[0].base64 }]);
+        // 5 fotoğraf tek istekte gittiği için daha küçük boyut
+        let img;
+        try { img = await compressImage(result.assets[0], { maxSide: 1024, quality: 0.5, maxBase64: 180_000 }); }
+        catch { Alert.alert('Hata', 'Fotoğraf işlenemedi. Lütfen tekrar deneyin.'); return; }
+        setPhotos(p => [...p, { uri: img.uri, base64: 'data:image/jpeg;base64,' + img.base64 }]);
     }
 
     async function addFromGallery() {
@@ -55,16 +60,18 @@ export default function IncidentReportScreen() {
         if (perm.status !== 'granted') { Alert.alert('Galeri İzni', 'Fotoğraf seçmek için galeri izni gereklidir.'); return; }
         const result = await ImagePicker.launchImageLibraryAsync({
             mediaTypes: ImagePicker.MediaTypeOptions.Images,
-            quality: 0.6,
-            base64: true,
+            quality: 1,
             allowsMultipleSelection: true,
             selectionLimit: 5 - photos.length,
         });
         if (result.canceled || !result.assets?.length) return;
-        const picked = result.assets
-            .filter(a => a.base64)
-            .slice(0, 5 - photos.length)
-            .map(a => ({ uri: a.uri, base64: 'data:image/jpeg;base64,' + a.base64 }));
+        const picked = [];
+        for (const a of result.assets.slice(0, 5 - photos.length)) {
+            try {
+                const img = await compressImage(a, { maxSide: 1024, quality: 0.5, maxBase64: 180_000 });
+                picked.push({ uri: img.uri, base64: 'data:image/jpeg;base64,' + img.base64 });
+            } catch {}
+        }
         setPhotos(p => [...p, ...picked]);
     }
 

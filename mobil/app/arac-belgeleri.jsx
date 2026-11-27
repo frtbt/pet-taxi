@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../src/context/AuthContext';
 import { useTheme } from '../src/context/ThemeContext';
 import taxiApi from '../src/api/taxiClient';
+import { compressImage } from '../src/utils/compressImage';
 
 export default function AracBelgeleriScreen() {
     const router             = useRouter();
@@ -39,11 +40,12 @@ export default function AracBelgeleriScreen() {
         }
         const result = await ImagePicker.launchImageLibraryAsync({
             mediaTypes: ImagePicker.MediaTypeOptions.Images,
-            quality: 0.7,
-            base64: true,
+            quality: 1,
         });
         if (result.canceled) return;
-        const asset = result.assets[0];
+        let asset;
+        try { asset = await compressImage(result.assets[0]); }
+        catch { Alert.alert('Hata', 'Fotoğraf işlenemedi. Lütfen tekrar deneyin.'); return; }
         if (type === 'muayene') {
             setMuayeneUri(asset.uri);
             setMuayeneB64(asset.base64);
@@ -72,7 +74,10 @@ export default function AracBelgeleriScreen() {
 
         setLoading(true);
         try {
-            const res = await taxiApi.uploadAracBelgeleri(muayeneB64, sigortaB64);
+            // Sunucu büyük istekleri reddettiği için belgeler tek tek gönderilir
+            let res = { success: true };
+            if (muayeneB64) res = await taxiApi.uploadAracBelgeleri(muayeneB64, null);
+            if (res.success && sigortaB64) res = await taxiApi.uploadAracBelgeleri(null, sigortaB64);
             if (res.success) {
                 if (res.user) refreshUser(res.user);
                 Alert.alert(

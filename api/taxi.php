@@ -1013,7 +1013,8 @@ switch ($action) {
      */
     case 'get_notifications':
         $user  = requireAuth();
-        $stmt  = $db->prepare("SELECT * FROM taxi_notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT 30");
+        // id sıralaması: canlı tablo schema.sql ile kurulduysa created_at yerine 'tarih' sütunu var
+        $stmt  = $db->prepare("SELECT * FROM taxi_notifications WHERE user_id = ? ORDER BY id DESC LIMIT 30");
         $stmt->execute([$user['id']]);
         $notifs = $stmt->fetchAll();
         jsonResponse(['success' => true, 'notifications' => $notifs]);

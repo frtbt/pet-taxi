@@ -10,6 +10,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import taxiApi from '../src/api/taxiClient';
+import { compressImage } from '../src/utils/compressImage';
 import { useTheme } from '../src/context/ThemeContext';
 
 const ALAN_BILGI = {
@@ -149,11 +150,10 @@ export default function DriverVerification() {
         return () => { active = false; };
     }, []));
 
-    function applyPhoto(field, asset) {
-        if (asset.base64 && asset.base64.length > 2_700_000) {
-            Alert.alert('Dosya Çok Büyük', "Lütfen 2 MB'den küçük bir fotoğraf seçin.");
-            return;
-        }
+    async function applyPhoto(field, picked) {
+        let asset;
+        try { asset = await compressImage(picked); }
+        catch { Alert.alert('Hata', 'Fotoğraf işlenemedi. Lütfen tekrar deneyin.'); return; }
         b64.current[field] = asset.base64 ?? null;
         setPhotos(p => ({ ...p, [field]: { uri: asset.uri, isExisting: false } }));
     }
@@ -167,11 +167,11 @@ export default function DriverVerification() {
             cameraOk ? 'Nasıl yüklemek istersiniz?' : 'Kamera izni yok. Galeriden seçebilirsiniz.',
             [
                 ...(cameraOk ? [{ text: 'Kamera', onPress: async () => {
-                    const r = await ImagePicker.launchCameraAsync({ quality: 0.6, base64: true, allowsEditing: true, aspect: [4, 3] });
+                    const r = await ImagePicker.launchCameraAsync({ quality: 1, allowsEditing: true, aspect: [4, 3] });
                     if (!r.canceled) applyPhoto(field, r.assets[0]);
                 } }] : []),
                 { text: 'Galeriden Seç', onPress: async () => {
-                    const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.6, base64: true, allowsEditing: true, aspect: [4, 3] });
+                    const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 1, allowsEditing: true, aspect: [4, 3] });
                     if (!r.canceled) applyPhoto(field, r.assets[0]);
                 } },
                 { text: 'İptal', style: 'cancel' },
@@ -191,7 +191,8 @@ export default function DriverVerification() {
                         const result = await DocumentPicker.getDocumentAsync({ type: 'application/pdf', copyToCacheDirectory: true });
                         if (result.canceled) return;
                         const file = result.assets[0];
-                        if (file.size > 5_000_000) { Alert.alert('Dosya Çok Büyük', "Lütfen 5 MB'den küçük bir PDF seçin."); return; }
+                        // Sunucu ~1 MB üstü istekleri reddediyor; base64 boyutu ~%33 artırır
+                        if (file.size > 700_000) { Alert.alert('Dosya Çok Büyük', "Lütfen 700 KB'den küçük bir PDF seçin ya da belgenin fotoğrafını yükleyin."); return; }
                         const response = await fetch(file.uri);
                         const blob = await response.blob();
                         const reader = new FileReader();
@@ -216,10 +217,11 @@ export default function DriverVerification() {
             Alert.alert('Limit Doldu', 'En fazla 6 araç içi görsel ekleyebilirsiniz.');
             return;
         }
-        const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.6, base64: true, allowsEditing: true, aspect: [4, 3] });
+        const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 1, allowsEditing: true, aspect: [4, 3] });
         if (r.canceled) return;
-        const asset = r.assets[0];
-        if (asset.base64?.length > 2_700_000) { Alert.alert('Dosya Çok Büyük', "2 MB'den küçük bir görsel seçin."); return; }
+        let asset;
+        try { asset = await compressImage(r.assets[0]); }
+        catch { Alert.alert('Hata', 'Fotoğraf işlenemedi. Lütfen tekrar deneyin.'); return; }
         b64.current.ic_gorseller = [...b64.current.ic_gorseller, asset.base64 ?? null];
         setPhotos(p => ({ ...p, ic_gorseller: [...p.ic_gorseller, { uri: asset.uri, isExisting: false }] }));
     }

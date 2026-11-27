@@ -123,6 +123,7 @@ function ThemedStack() {
                     headerTitleStyle: { fontWeight: 'bold', color: colors.text },
                     contentStyle:     { backgroundColor: colors.background },
                     animation:        'slide_from_right',
+                    headerBackTitle:  'Geri',
                 }}
             >
                 <Stack.Screen name="index"               options={{ headerShown: false }} />
